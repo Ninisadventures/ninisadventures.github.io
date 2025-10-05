@@ -1,0 +1,31 @@
+# AAA Texture Generation Service - Python Dependencies
+# Install with: pip install -r requirements.txt --break-system-packages
+
+# Core dependencies
+numpy>=1.24.0
+Pillow>=10.0.0
+aiohttp>=3.8.0
+aiofiles>=23.0.0
+
+# Optional performance enhancements
+uvloop>=0.17.0  # Faster event loop (Unix only)
+orjson>=3.9.0   # Faster JSON parsing
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Monitoring and logging
+prometheus-client>=0.17.0
+python-json-logger>=2.0.0
+
+# Optional: Advanced noise generation
+noise>=1.2.2  # Better Perlin/Simplex noise
+
+# Optional: GPU acceleration
+# opencv-python>=4.8.0  # Uncomment for advanced image processing
+# numba>=0.57.0         # Uncomment for JIT compilation
