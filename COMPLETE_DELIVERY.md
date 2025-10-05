@@ -1,3 +1,8 @@
+---
+layout: default
+title: Complete Delivery
+---
+
 # 🎮 COMPLETE AAA GAME SYSTEM - FINAL DELIVERY
 
 ## 📦 What You've Received

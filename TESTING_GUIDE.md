@@ -1,3 +1,8 @@
+---
+layout: default
+title: Testing Guide
+---
+
 # 🧪 Testing Guide
 
 ## Comprehensive System Validation
@@ -380,7 +385,7 @@ curl -X POST http://localhost:8080/api/generate \
 ```javascript
 const ws = new WebSocket('ws://localhost:3000');
 ws.on('open', () => {
-  ws.send('invalid json{{{');
+  ws.send('invalid json');
 });
 // Expected: Server should handle gracefully, not crash
 ```

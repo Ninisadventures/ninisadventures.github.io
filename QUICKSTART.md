@@ -1,3 +1,8 @@
+---
+layout: default
+title: Quick Start Guide
+---
+
 # ⚡ Quick Start Guide
 
 Get up and running in **5 minutes**!

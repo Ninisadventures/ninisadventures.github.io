@@ -1,0 +1,87 @@
+# Jekyll Configuration for Nini's Adventures GitHub Pages
+
+# Site Settings
+title: Nini's Adventures - AAA Edition
+description: Professional-grade 2.5D multiplayer FPS game with advanced rendering and networking
+author: AAA Game Development Team
+email: your-email@example.com
+
+# Build Settings
+markdown: kramdown
+theme: jekyll-theme-primer
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - setup.sh
+  - texture_cache
+  - logs
+  - backups
+  - "*.tar.gz"
+  - "*.zip"
+
+# Include files
+include:
+  - _pages
+
+# Kramdown settings
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /docs/:path/
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "default"
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Quick Start
+    url: /QUICKSTART
+  - title: Documentation
+    url: /README
+  - title: Testing
+    url: /TESTING_GUIDE
+  - title: Project Summary
+    url: /PROJECT_SUMMARY
+
+# GitHub Repository
+repository: Ninisadventures/ninisadventures.github.io
+
+# Social
+github_username: Ninisadventures
+
+# Build optimization
+sass:
+  style: compressed
+
+# Timezone
+timezone: America/Montreal
