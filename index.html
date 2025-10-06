@@ -404,43 +404,51 @@
         // Start button handler
         startButton.addEventListener('click', () => {
             titleScreen.classList.add('hidden');
+            if (gameInstance) {
+                gameInstance.start();
+            }
             const canvas = document.getElementById('gameCanvas');
             canvas.focus();
         });
         
-        // Initialize game
-        window.addEventListener('load', async () => {
+        // Centralized game initialization
+        async function initializeGame() {
             try {
                 console.log('🎮 Initializing Bulletproof Game System...');
                 
-                // Update UI based on environment
-                updateEnvironmentUI();
+                // Wait for all scripts to be loaded and the Game class to be defined
+                await new Promise(resolve => {
+                    const interval = setInterval(() => {
+                        if (typeof Game !== 'undefined') {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    }, 100);
+                });
                 
-                // Wait for game_client_part2_updated.js to define Game class
-                if (typeof Game === 'undefined') {
-                    console.log('⏳ Waiting for Game class...');
-                    await new Promise(resolve => {
-                        const checkGame = setInterval(() => {
-                            if (typeof Game !== 'undefined') {
-                                clearInterval(checkGame);
-                                resolve();
-                            }
-                        }, 100);
-                    });
-                }
+                console.log('✅ Game class available. Creating instance...');
+
+                // Create and initialize the game
+                gameInstance = new Game();
+                window.gameInstance = gameInstance; // Make it globally accessible
                 
-                console.log('✅ All scripts loaded');
+                // Start progress monitoring immediately
+                updateProgress();
                 
-                // The game_client_part2_updated.js already creates and starts the game
-                // Just update progress monitoring
-                setTimeout(() => {
-                    updateProgress();
-                }, 100);
+                // Initialize assets
+                await gameInstance.init();
+
+                console.log('✅ Initialization complete. Ready to start.');
                 
             } catch (error) {
                 console.error('❌ Initialization error:', error);
                 showError('Initialization error: ' + error.message);
             }
+        }
+
+        window.addEventListener('load', () => {
+            updateEnvironmentUI();
+            initializeGame();
         });
         
         // Performance monitoring
