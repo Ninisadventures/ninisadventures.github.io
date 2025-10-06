@@ -1,8 +1,3 @@
----
-layout: default
-title: Google Drive Upload Guide
----
-
 # 📤 Google Drive Upload Guide
 
 ## Your Complete AAA Game System - Ready for Google Drive!

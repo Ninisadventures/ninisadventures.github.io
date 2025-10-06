@@ -1,8 +1,3 @@
----
-layout: default
-title: Project Summary
----
-
 # 🎮 Project Summary: AAA-Quality Game System
 
 ## 📋 Complete File List

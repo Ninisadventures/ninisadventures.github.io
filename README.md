@@ -1,8 +1,3 @@
----
-layout: default
-title: Nini's Adventures - AAA Edition
----
-
 # Nini's Adventures: Kitties Mayhem - AAA Edition
 
 ## 🎮 Professional-Grade Game Development System
