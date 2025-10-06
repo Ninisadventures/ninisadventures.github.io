@@ -207,6 +207,10 @@ class Renderer3D {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.assetManager = assetManager;
+
+        // Performance optimization: reusable off-screen canvas for texture rendering
+        this.textureCanvas = document.createElement('canvas');
+        this.textureCtx = this.textureCanvas.getContext('2d');
     }
     
     render(player, raycastEngine, enemies, projectiles, particleSystem) {
@@ -270,16 +274,15 @@ class Renderer3D {
         
         textureX = Math.max(0, Math.min(textureWidth - 1, Math.floor(textureX)));
         
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 1;
-        tempCanvas.height = textureHeight;
-        const tempCtx = tempCanvas.getContext('2d');
+        // Use the reusable off-screen canvas
+        this.textureCanvas.width = 1;
+        this.textureCanvas.height = textureHeight;
         
-        tempCtx.putImageData(texture, -textureX, 0);
+        this.textureCtx.putImageData(texture, -textureX, 0);
         
         this.ctx.save();
         this.ctx.globalAlpha = brightness;
-        this.ctx.drawImage(tempCanvas, 0, 0, 1, textureHeight, x, y, width, height);
+        this.ctx.drawImage(this.textureCanvas, 0, 0, 1, textureHeight, x, y, width, height);
         this.ctx.restore();
     }
     
@@ -358,14 +361,12 @@ class Renderer3D {
         this.ctx.save();
         this.ctx.globalAlpha = lightIntensity;
         
-        const tempCanvas = document.createElement('canvas');
         const textureData = texture.frames[frameIndex];
-        tempCanvas.width = textureData.width;
-        tempCanvas.height = textureData.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.putImageData(textureData, 0, 0);
+        this.textureCanvas.width = textureData.width;
+        this.textureCanvas.height = textureData.height;
+        this.textureCtx.putImageData(textureData, 0, 0);
         
-        this.ctx.drawImage(tempCanvas, x, y, spriteWidth, spriteHeight);
+        this.ctx.drawImage(this.textureCanvas, x, y, spriteWidth, spriteHeight);
         this.ctx.restore();
     }
     
@@ -409,13 +410,12 @@ class Renderer3D {
         const x = this.canvas.width / 2 - weaponWidth / 2;
         const y = this.canvas.height - weaponHeight - 20;
         
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = weapon.frames[0].width;
-        tempCanvas.height = weapon.frames[0].height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.putImageData(weapon.frames[0], 0, 0);
+        const textureData = weapon.frames[0];
+        this.textureCanvas.width = textureData.width;
+        this.textureCanvas.height = textureData.height;
+        this.textureCtx.putImageData(textureData, 0, 0);
         
-        this.ctx.drawImage(tempCanvas, x, y, weaponWidth, weaponHeight);
+        this.ctx.drawImage(this.textureCanvas, x, y, weaponWidth, weaponHeight);
     }
     
     _renderMinimap(player, raycastEngine, enemies) {
@@ -704,10 +704,4 @@ class Game {
     }
 }
 
-// Auto-start game
-window.addEventListener('load', async () => {
-    const game = new Game();
-    window.gameInstance = game; // Make available globally
-    await game.init();
-    game.start();
-});
+// Game class is now instantiated and started in index.html to ensure proper lifecycle management.
