@@ -319,8 +319,8 @@
     <script src="config.js"></script>
     <script src="texture_generator_client.js"></script>
     <script src="asset_manager_bulletproof.js"></script>
-    <script src="game_client.js"></script>
-    <script src="game_client_part2.js"></script>
+    <script src="game_client_updated.js"></script>
+    <script src="game_client_part2_updated.js"></script>
     
     <script>
         // Bulletproof initialization
@@ -416,7 +416,7 @@
                 // Update UI based on environment
                 updateEnvironmentUI();
                 
-                // Wait for game_client_part2.js to define Game class
+                // Wait for game_client_part2_updated.js to define Game class
                 if (typeof Game === 'undefined') {
                     console.log('⏳ Waiting for Game class...');
                     await new Promise(resolve => {
@@ -431,7 +431,7 @@
                 
                 console.log('✅ All scripts loaded');
                 
-                // The game_client_part2.js already creates and starts the game
+                // The game_client_part2_updated.js already creates and starts the game
                 // Just update progress monitoring
                 setTimeout(() => {
                     updateProgress();

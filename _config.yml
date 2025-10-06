@@ -1,87 +1,37 @@
-# Jekyll Configuration for Nini's Adventures GitHub Pages
+# Jekyll Configuration for GitHub Pages
+# This prevents Jekyll from processing game files
 
-# Site Settings
-title: Nini's Adventures - AAA Edition
-description: Professional-grade 2.5D multiplayer FPS game with advanced rendering and networking
-author: AAA Game Development Team
-email: your-email@example.com
-
-# Build Settings
-markdown: kramdown
-theme: jekyll-theme-primer
-
-# Plugins
-plugins:
-  - jekyll-feed
-  - jekyll-seo-tag
-  - jekyll-sitemap
-
-# Exclude from processing
+# Exclude files that shouldn't be processed by Jekyll
 exclude:
-  - Gemfile
-  - Gemfile.lock
-  - node_modules
-  - vendor
+  - prepare_deployment.sh
+  - verify_bulletproof.sh
   - setup.sh
-  - texture_cache
-  - logs
-  - backups
-  - "*.tar.gz"
-  - "*.zip"
+  - "*.log"
+  - node_modules/
+  - vendor/
 
-# Include files
-include:
-  - _pages
+# Don't process JavaScript as Liquid templates
+liquid:
+  error_mode: warn
+  strict_filters: false
+  strict_variables: false
 
-# Kramdown settings
+# Markdown settings
+markdown: kramdown
 kramdown:
   input: GFM
-  syntax_highlighter: rouge
-  syntax_highlighter_opts:
-    block:
-      line_numbers: false
+  hard_wrap: false
 
-# Collections
-collections:
-  docs:
-    output: true
-    permalink: /docs/:path/
+# Theme (optional - remove if you don't want a theme)
+theme: jekyll-theme-minimal
 
-# Defaults
+# Treat .js files as static assets
+include:
+  - _config.yml
+
+# Don't process these file types with Liquid
 defaults:
   - scope:
-      path: ""
-      type: "pages"
+      path: "*.js"
     values:
-      layout: "default"
-  - scope:
-      path: ""
-      type: "docs"
-    values:
-      layout: "default"
-
-# Navigation
-navigation:
-  - title: Home
-    url: /
-  - title: Quick Start
-    url: /QUICKSTART
-  - title: Documentation
-    url: /README
-  - title: Testing
-    url: /TESTING_GUIDE
-  - title: Project Summary
-    url: /PROJECT_SUMMARY
-
-# GitHub Repository
-repository: Ninisadventures/ninisadventures.github.io
-
-# Social
-github_username: Ninisadventures
-
-# Build optimization
-sass:
-  style: compressed
-
-# Timezone
-timezone: America/Montreal
+      layout: none
