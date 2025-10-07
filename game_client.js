@@ -1,58 +1,11 @@
 /**
  * Nini's Adventures: Kitties Mayhem - AAA Edition
- * Professional-grade 2.5D FPS with advanced rendering and networking
+ * BULLETPROOF VERSION - Works anywhere!
+ * Uses BulletproofAssetManager instead of AssetManager
  */
 
-// ============================================================================
-// CONFIGURATION & CONSTANTS
-// ============================================================================
-
-const CONFIG = {
-    // Display
-    CANVAS_WIDTH: 1280,
-    CANVAS_HEIGHT: 720,
-    TARGET_FPS: 60,
-    
-    // World
-    TILE_SIZE: 64,
-    MAP_ROWS: 15,
-    MAP_COLS: 20,
-    
-    // Rendering
-    FOV_ANGLE: 60 * (Math.PI / 180),
-    RENDER_DISTANCE: 1000,
-    WALL_STRIP_WIDTH: 1,
-    MINIMAP_SCALE: 0.15,
-    SHADOW_QUALITY: 'high',
-    LIGHTING_ENABLED: true,
-    PARTICLE_LIMIT: 1000,
-    
-    // Gameplay
-    PLAYER_SPEED: 3.0,
-    PLAYER_ROTATION_SPEED: 3 * (Math.PI / 180),
-    PLAYER_RADIUS: 8,
-    MAX_HEALTH: 100,
-    MAX_AMMO: 100,
-    PROJECTILE_SPEED: 8,
-    PROJECTILE_DAMAGE: 25,
-    
-    // AI
-    ENEMY_CHASE_RANGE: 400,
-    ENEMY_ATTACK_RANGE: 30,
-    ENEMY_ATTACK_DAMAGE: 2,
-    ENEMY_SPEED: 2.0,
-    ENEMY_HEALTH: 100,
-    
-    // Network
-    SERVER_URL: 'ws://localhost:3000',
-    TEXTURE_SERVICE_URL: 'http://localhost:8080',
-    NETWORK_TICK_RATE: 20, // Updates per second
-    
-    // Audio
-    MASTER_VOLUME: 0.7,
-    SFX_VOLUME: 0.8,
-    MUSIC_VOLUME: 0.5
-};
+// Note: CONFIG is loaded from config.js
+// Note: BulletproofAssetManager is loaded from asset_manager_bulletproof.js
 
 // ============================================================================
 // UTILITY CLASSES
@@ -103,245 +56,41 @@ class AABB {
 }
 
 // ============================================================================
-// ASSET MANAGER
-// ============================================================================
-
-class AssetManager {
-    constructor() {
-        this.textures = new Map();
-        this.sounds = new Map();
-        this.loading = new Set();
-        this.loaded = 0;
-        this.total = 0;
-        this.textureServiceUrl = CONFIG.TEXTURE_SERVICE_URL;
-    }
-    
-    async loadTextureFromService(name, config) {
-        if (this.textures.has(name)) {
-            return this.textures.get(name);
-        }
-        
-        if (this.loading.has(name)) {
-            // Wait for ongoing load
-            while (this.loading.has(name)) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            return this.textures.get(name);
-        }
-        
-        this.loading.add(name);
-        this.total++;
-        
-        try {
-            const response = await fetch(`${this.textureServiceUrl}/api/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Texture service error: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            // Convert base64 to ImageData
-            const textures = await Promise.all(
-                data.diffuse.map(base64 => this._base64ToImageData(base64))
-            );
-            
-            const asset = {
-                frames: textures,
-                normalMap: data.normal ? await Promise.all(
-                    data.normal.map(b64 => this._base64ToImageData(b64))
-                ) : null,
-                specularMap: data.specular ? await Promise.all(
-                    data.specular.map(b64 => this._base64ToImageData(b64))
-                ) : null,
-                metadata: data.metadata
-            };
-            
-            this.textures.set(name, asset);
-            this.loaded++;
-            
-            return asset;
-            
-        } catch (error) {
-            console.error(`Failed to load texture ${name}:`, error);
-            // Return fallback texture
-            return this._createFallbackTexture();
-        } finally {
-            this.loading.delete(name);
-        }
-    }
-    
-    async _base64ToImageData(base64) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve(ctx.getImageData(0, 0, img.width, img.height));
-            };
-            img.onerror = reject;
-            img.src = 'data:image/png;base64,' + base64;
-        });
-    }
-    
-    _createFallbackTexture() {
-        const size = 64;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        
-        // Checkerboard pattern
-        ctx.fillStyle = '#ff00ff';
-        ctx.fillRect(0, 0, size, size);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, size / 2, size / 2);
-        ctx.fillRect(size / 2, size / 2, size / 2, size / 2);
-        
-        return {
-            frames: [ctx.getImageData(0, 0, size, size)],
-            normalMap: null,
-            specularMap: null,
-            metadata: { width: size, height: size, frames: 1 }
-        };
-    }
-    
-    getTexture(name) {
-        return this.textures.get(name);
-    }
-    
-    getProgress() {
-        return this.total > 0 ? this.loaded / this.total : 1;
-    }
-    
-    async preloadAssets() {
-        const assets = [
-            // Walls
-            { name: 'wall_banana', config: {
-                texture_type: 'wall',
-                width: 256,
-                height: 256,
-                quality: 'HIGH',
-                theme: 'banana',
-                enable_normal_map: true,
-                enable_specular: true
-            }},
-            
-            // Characters
-            { name: 'kitty', config: {
-                texture_type: 'sprite',
-                width: 128,
-                height: 128,
-                quality: 'HIGH',
-                theme: 'banana',
-                animation_frames: 4
-            }},
-            
-            // Weapons
-            { name: 'banana_gun', config: {
-                texture_type: 'weapon',
-                width: 256,
-                height: 128,
-                quality: 'HIGH',
-                theme: 'banana'
-            }},
-            
-            // Projectiles
-            { name: 'banana_projectile', config: {
-                texture_type: 'projectile',
-                width: 64,
-                height: 64,
-                quality: 'MEDIUM',
-                theme: 'banana'
-            }},
-            
-            // Effects
-            { name: 'explosion', config: {
-                texture_type: 'effect',
-                width: 128,
-                height: 128,
-                quality: 'HIGH',
-                theme: 'banana',
-                animation_frames: 6
-            }},
-            
-            { name: 'muzzle_flash', config: {
-                texture_type: 'particle',
-                width: 64,
-                height: 64,
-                quality: 'MEDIUM',
-                theme: 'banana',
-                animation_frames: 3
-            }},
-            
-            // Pickups
-            { name: 'health_pickup', config: {
-                texture_type: 'sprite',
-                width: 64,
-                height: 64,
-                quality: 'MEDIUM',
-                theme: 'banana'
-            }},
-            
-            { name: 'ammo_pickup', config: {
-                texture_type: 'sprite',
-                width: 64,
-                height: 64,
-                quality: 'MEDIUM',
-                theme: 'banana'
-            }},
-            
-            // UI
-            { name: 'ui_panel', config: {
-                texture_type: 'ui',
-                width: 256,
-                height: 64,
-                quality: 'MEDIUM',
-                theme: 'banana'
-            }}
-        ];
-        
-        console.log('Preloading assets from texture service...');
-        await Promise.all(
-            assets.map(asset => this.loadTextureFromService(asset.name, asset.config))
-        );
-        console.log('All assets loaded!');
-    }
-}
-
-// ============================================================================
 // AUDIO SYSTEM
 // ============================================================================
 
 class AudioSystem {
     constructor() {
-        this.context = new (window.AudioContext || window.webkitAudioContext)();
-        this.masterGain = this.context.createGain();
-        this.masterGain.connect(this.context.destination);
-        this.masterGain.gain.value = CONFIG.MASTER_VOLUME;
-        
+        this.context = null;
+        this.masterGain = null;
+        this.initialized = false;
         this.sounds = new Map();
-        this.music = null;
     }
     
     async init() {
-        // Generate procedural sounds
-        this.sounds.set('shoot', this._generateShootSound());
-        this.sounds.set('hit', this._generateHitSound());
-        this.sounds.set('explosion', this._generateExplosionSound());
-        this.sounds.set('pickup', this._generatePickupSound());
-        this.sounds.set('hurt', this._generateHurtSound());
-        this.sounds.set('meow', this._generateMeowSound());
+        try {
+            this.context = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.context.createGain();
+            this.masterGain.connect(this.context.destination);
+            this.masterGain.gain.value = GAME_SETTINGS.MASTER_VOLUME;
+            
+            // Generate procedural sounds
+            this.sounds.set('shoot', this._generateShootSound());
+            this.sounds.set('hit', this._generateHitSound());
+            this.sounds.set('explosion', this._generateExplosionSound());
+            this.sounds.set('pickup', this._generatePickupSound());
+            this.sounds.set('hurt', this._generateHurtSound());
+            this.sounds.set('meow', this._generateMeowSound());
+            
+            this.initialized = true;
+        } catch (error) {
+            console.warn('Audio initialization failed:', error);
+            this.initialized = false;
+        }
     }
     
     _generateShootSound() {
+        if (!this.context) return null;
         const duration = 0.15;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -356,6 +105,7 @@ class AudioSystem {
     }
     
     _generateHitSound() {
+        if (!this.context) return null;
         const duration = 0.1;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -370,6 +120,7 @@ class AudioSystem {
     }
     
     _generateExplosionSound() {
+        if (!this.context) return null;
         const duration = 0.5;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -384,6 +135,7 @@ class AudioSystem {
     }
     
     _generatePickupSound() {
+        if (!this.context) return null;
         const duration = 0.2;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -399,6 +151,7 @@ class AudioSystem {
     }
     
     _generateHurtSound() {
+        if (!this.context) return null;
         const duration = 0.3;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -414,6 +167,7 @@ class AudioSystem {
     }
     
     _generateMeowSound() {
+        if (!this.context) return null;
         const duration = 0.4;
         const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate);
         const data = buffer.getChannelData(0);
@@ -429,6 +183,8 @@ class AudioSystem {
     }
     
     play(soundName, volume = 1.0) {
+        if (!this.initialized || !this.context) return;
+
         const buffer = this.sounds.get(soundName);
         if (!buffer) return;
         
@@ -438,7 +194,7 @@ class AudioSystem {
         source.buffer = buffer;
         source.connect(gainNode);
         gainNode.connect(this.masterGain);
-        gainNode.gain.value = volume * CONFIG.SFX_VOLUME;
+        gainNode.gain.value = volume * GAME_SETTINGS.SFX_VOLUME;
         
         source.start(0);
     }
@@ -469,7 +225,7 @@ class Particle {
     
     update(dt) {
         this.position = this.position.add(this.velocity.multiply(dt));
-        this.velocity = this.velocity.multiply(0.95); // Damping
+        this.velocity = this.velocity.multiply(0.95);
         this.lifetime -= dt;
         this.alpha = this.lifetime / this.maxLifetime;
         return this.lifetime > 0;
@@ -502,9 +258,8 @@ class ParticleSystem {
             ));
         }
         
-        // Limit particle count
-        if (this.particles.length > CONFIG.PARTICLE_LIMIT) {
-            this.particles = this.particles.slice(-CONFIG.PARTICLE_LIMIT);
+        if (this.particles.length > GAME_SETTINGS.PARTICLE_LIMIT) {
+            this.particles = this.particles.slice(-GAME_SETTINGS.PARTICLE_LIMIT);
         }
     }
     
@@ -518,7 +273,6 @@ class ParticleSystem {
             ctx.globalAlpha = particle.alpha;
             ctx.fillStyle = particle.color;
             
-            // Convert to screen space
             const screenX = particle.position.x - camera.x;
             const screenY = particle.position.y - camera.y;
             
@@ -558,10 +312,10 @@ class Entity {
 class Player extends Entity {
     constructor(x, y) {
         super(x, y);
-        this.radius = CONFIG.PLAYER_RADIUS;
-        this.maxHealth = CONFIG.MAX_HEALTH;
+        this.radius = GAME_SETTINGS.PLAYER_RADIUS;
+        this.maxHealth = GAME_SETTINGS.MAX_HEALTH;
         this.health = this.maxHealth;
-        this.ammo = CONFIG.MAX_AMMO;
+        this.ammo = GAME_SETTINGS.MAX_AMMO;
         this.score = 0;
         this.turnDirection = 0;
         this.walkDirection = 0;
@@ -569,13 +323,12 @@ class Player extends Entity {
     }
     
     update(dt, input, world) {
-        // Movement
         this.turnDirection = (input.left ? -1 : 0) + (input.right ? 1 : 0);
         this.walkDirection = (input.up ? 1 : 0) + (input.down ? -1 : 0);
         
-        this.rotation += this.turnDirection * CONFIG.PLAYER_ROTATION_SPEED;
+        this.rotation += this.turnDirection * GAME_SETTINGS.PLAYER_ROTATION_SPEED;
         
-        const moveStep = this.walkDirection * CONFIG.PLAYER_SPEED;
+        const moveStep = this.walkDirection * GAME_SETTINGS.PLAYER_SPEED;
         const newPos = this.position.add(
             Vector2.fromAngle(this.rotation, moveStep)
         );
@@ -584,7 +337,6 @@ class Player extends Entity {
             this.position = newPos;
         }
         
-        // Shooting
         if (this.shootCooldown > 0) {
             this.shootCooldown -= dt;
         }
@@ -597,7 +349,7 @@ class Player extends Entity {
     shoot() {
         if (this.canShoot()) {
             this.ammo--;
-            this.shootCooldown = 0.25; // 4 shots per second
+            this.shootCooldown = 0.25;
             return true;
         }
         return false;
@@ -607,7 +359,7 @@ class Player extends Entity {
 class Enemy extends Entity {
     constructor(x, y) {
         super(x, y);
-        this.maxHealth = CONFIG.ENEMY_HEALTH;
+        this.maxHealth = GAME_SETTINGS.ENEMY_HEALTH;
         this.health = this.maxHealth;
         this.state = 'idle';
         this.target = null;
@@ -619,17 +371,16 @@ class Enemy extends Entity {
     update(dt, player, world) {
         const distToPlayer = this.position.distance(player.position);
         
-        // State machine
-        if (distToPlayer < CONFIG.ENEMY_ATTACK_RANGE) {
+        if (distToPlayer < GAME_SETTINGS.ENEMY_ATTACK_RANGE) {
             this.state = 'attack';
             if (this.attackCooldown <= 0) {
-                player.takeDamage(CONFIG.ENEMY_ATTACK_DAMAGE);
+                player.takeDamage(GAME_SETTINGS.ENEMY_ATTACK_DAMAGE);
                 this.attackCooldown = 1.0;
             }
-        } else if (distToPlayer < CONFIG.ENEMY_CHASE_RANGE) {
+        } else if (distToPlayer < GAME_SETTINGS.ENEMY_CHASE_RANGE) {
             this.state = 'chase';
             const direction = player.position.subtract(this.position).normalize();
-            const newPos = this.position.add(direction.multiply(CONFIG.ENEMY_SPEED));
+            const newPos = this.position.add(direction.multiply(GAME_SETTINGS.ENEMY_SPEED));
             
             if (!world.isWallAt(newPos.x, newPos.y)) {
                 this.position = newPos;
@@ -638,12 +389,10 @@ class Enemy extends Entity {
             this.state = 'idle';
         }
         
-        // Update cooldowns
         if (this.attackCooldown > 0) {
             this.attackCooldown -= dt;
         }
         
-        // Animation
         this.animationTime += dt;
         if (this.animationTime > 0.2) {
             this.animationFrame = (this.animationFrame + 1) % 4;
@@ -656,9 +405,9 @@ class Projectile extends Entity {
     constructor(x, y, rotation, owner) {
         super(x, y);
         this.rotation = rotation;
-        this.velocity = Vector2.fromAngle(rotation, CONFIG.PROJECTILE_SPEED);
+        this.velocity = Vector2.fromAngle(rotation, GAME_SETTINGS.PROJECTILE_SPEED);
         this.owner = owner;
-        this.damage = CONFIG.PROJECTILE_DAMAGE;
+        this.damage = GAME_SETTINGS.PROJECTILE_DAMAGE;
         this.radius = 4;
         this.lifetime = 5.0;
     }
@@ -673,4 +422,12 @@ class Projectile extends Entity {
     }
 }
 
-// Continued in next file...
+// Export for use in part 2
+window.Vector2 = Vector2;
+window.AABB = AABB;
+window.AudioSystem = AudioSystem;
+window.ParticleSystem = ParticleSystem;
+window.Entity = Entity;
+window.Player = Player;
+window.Enemy = Enemy;
+window.Projectile = Projectile;

@@ -1,5 +1,6 @@
 /**
  * Game Client Part 2: Rendering Engine & Game Loop
+ * BULLETPROOF VERSION
  */
 
 // ============================================================================
@@ -9,9 +10,9 @@
 class World {
     constructor(mapData) {
         this.mapData = mapData;
-        this.width = mapData[0].length * CONFIG.TILE_SIZE;
-        this.height = mapData.length * CONFIG.TILE_SIZE;
-        this.tileSize = CONFIG.TILE_SIZE;
+        this.width = mapData[0].length * GAME_SETTINGS.TILE_SIZE;
+        this.height = mapData.length * GAME_SETTINGS.TILE_SIZE;
+        this.tileSize = GAME_SETTINGS.TILE_SIZE;
     }
     
     isWallAt(x, y) {
@@ -58,7 +59,7 @@ class RaycastEngine {
     constructor(world) {
         this.world = world;
         this.rays = [];
-        this.numRays = Math.floor(CONFIG.CANVAS_WIDTH / CONFIG.WALL_STRIP_WIDTH);
+        this.numRays = Math.floor(GAME_SETTINGS.CANVAS_WIDTH / GAME_SETTINGS.WALL_STRIP_WIDTH);
     }
     
     castRay(rayAngle, playerX, playerY) {
@@ -70,23 +71,20 @@ class RaycastEngine {
         const isRayFacingLeft = !isRayFacingRight;
         
         // Horizontal intersection
-        let xintercept, yintercept;
-        let xstep, ystep;
-        
         let foundHorzWallHit = false;
         let horzWallHitX = 0;
         let horzWallHitY = 0;
         let horzWallContent = 0;
         
-        yintercept = Math.floor(playerY / CONFIG.TILE_SIZE) * CONFIG.TILE_SIZE;
-        yintercept += isRayFacingDown ? CONFIG.TILE_SIZE : 0;
+        let yintercept = Math.floor(playerY / GAME_SETTINGS.TILE_SIZE) * GAME_SETTINGS.TILE_SIZE;
+        yintercept += isRayFacingDown ? GAME_SETTINGS.TILE_SIZE : 0;
         
-        xintercept = playerX + (yintercept - playerY) / Math.tan(rayAngle);
+        let xintercept = playerX + (yintercept - playerY) / Math.tan(rayAngle);
         
-        ystep = CONFIG.TILE_SIZE;
+        let ystep = GAME_SETTINGS.TILE_SIZE;
         ystep *= isRayFacingUp ? -1 : 1;
         
-        xstep = CONFIG.TILE_SIZE / Math.tan(rayAngle);
+        let xstep = GAME_SETTINGS.TILE_SIZE / Math.tan(rayAngle);
         xstep *= (isRayFacingLeft && xstep > 0) ? -1 : 1;
         xstep *= (isRayFacingRight && xstep < 0) ? -1 : 1;
         
@@ -116,17 +114,17 @@ class RaycastEngine {
         let vertWallHitY = 0;
         let vertWallContent = 0;
         
-        xintercept = Math.floor(playerX / CONFIG.TILE_SIZE) * CONFIG.TILE_SIZE;
-        xintercept += isRayFacingRight ? CONFIG.TILE_SIZE : 0;
+        xintercept = Math.floor(playerX / GAME_SETTINGS.TILE_SIZE) * GAME_SETTINGS.TILE_SIZE;
+        xintercept += isRayFacingRight ? GAME_SETTINGS.TILE_SIZE : 0;
         
         yintercept = playerY + (xintercept - playerX) * Math.tan(rayAngle);
         
-        xstep = CONFIG.TILE_SIZE;
-        xstep *= isRayFacingLeft ? -1 : 1;
+        let xstep2 = GAME_SETTINGS.TILE_SIZE;
+        xstep2 *= isRayFacingLeft ? -1 : 1;
         
-        ystep = CONFIG.TILE_SIZE * Math.tan(rayAngle);
-        ystep *= (isRayFacingUp && ystep > 0) ? -1 : 1;
-        ystep *= (isRayFacingDown && ystep < 0) ? -1 : 1;
+        let ystep2 = GAME_SETTINGS.TILE_SIZE * Math.tan(rayAngle);
+        ystep2 *= (isRayFacingUp && ystep2 > 0) ? -1 : 1;
+        ystep2 *= (isRayFacingDown && ystep2 < 0) ? -1 : 1;
         
         let nextVertTouchX = xintercept;
         let nextVertTouchY = yintercept;
@@ -144,11 +142,10 @@ class RaycastEngine {
                 break;
             }
             
-            nextVertTouchX += xstep;
-            nextVertTouchY += ystep;
+            nextVertTouchX += xstep2;
+            nextVertTouchY += ystep2;
         }
         
-        // Choose closest hit
         const horzHitDistance = foundHorzWallHit
             ? this._distanceBetweenPoints(playerX, playerY, horzWallHitX, horzWallHitY)
             : Number.MAX_VALUE;
@@ -178,8 +175,8 @@ class RaycastEngine {
     castAllRays(player) {
         this.rays = [];
         
-        const rayAngleIncrement = CONFIG.FOV_ANGLE / this.numRays;
-        let rayAngle = player.rotation - (CONFIG.FOV_ANGLE / 2);
+        const rayAngleIncrement = GAME_SETTINGS.FOV_ANGLE / this.numRays;
+        let rayAngle = player.rotation - (GAME_SETTINGS.FOV_ANGLE / 2);
         
         for (let i = 0; i < this.numRays; i++) {
             const ray = this.castRay(rayAngle, player.position.x, player.position.y);
@@ -210,7 +207,10 @@ class Renderer3D {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.assetManager = assetManager;
-        this.sprites = [];
+
+        // Performance optimization: reusable off-screen canvas for texture rendering
+        this.textureCanvas = document.createElement('canvas');
+        this.textureCtx = this.textureCanvas.getContext('2d');
     }
     
     render(player, raycastEngine, enemies, projectiles, particleSystem) {
@@ -243,32 +243,26 @@ class Renderer3D {
         for (let i = 0; i < raycastEngine.rays.length; i++) {
             const ray = raycastEngine.rays[i];
             
-            // Fix fish-eye distortion
             const correctDistance = ray.distance * Math.cos(ray.angle - player.rotation);
             
-            // Calculate wall height
-            const distanceProjPlane = (this.canvas.width / 2) / Math.tan(CONFIG.FOV_ANGLE / 2);
-            const wallStripHeight = (CONFIG.TILE_SIZE / correctDistance) * distanceProjPlane;
+            const distanceProjPlane = (this.canvas.width / 2) / Math.tan(GAME_SETTINGS.FOV_ANGLE / 2);
+            const wallStripHeight = (GAME_SETTINGS.TILE_SIZE / correctDistance) * distanceProjPlane;
             
-            // Lighting (distance-based)
-            const maxDistance = CONFIG.RENDER_DISTANCE;
+            const maxDistance = GAME_SETTINGS.RENDER_DISTANCE;
             const lightIntensity = Math.max(0.3, 1 - (correctDistance / maxDistance));
             
-            // Darker for vertical hits
             const shadeFactor = ray.wasHitVertical ? 0.8 : 1.0;
             
-            // Calculate texture column
             const textureOffsetX = ray.wasHitVertical
-                ? Math.floor(ray.wallHitY % CONFIG.TILE_SIZE)
-                : Math.floor(ray.wallHitX % CONFIG.TILE_SIZE);
+                ? Math.floor(ray.wallHitY % GAME_SETTINGS.TILE_SIZE)
+                : Math.floor(ray.wallHitX % GAME_SETTINGS.TILE_SIZE);
             
-            // Draw wall strip
-            const x = i * CONFIG.WALL_STRIP_WIDTH;
+            const x = i * GAME_SETTINGS.WALL_STRIP_WIDTH;
             const y = (this.canvas.height / 2) - (wallStripHeight / 2);
             
             this._drawTexturedWallStrip(
                 wallTexture.frames[0],
-                x, y, CONFIG.WALL_STRIP_WIDTH, wallStripHeight,
+                x, y, GAME_SETTINGS.WALL_STRIP_WIDTH, wallStripHeight,
                 textureOffsetX, lightIntensity * shadeFactor
             );
         }
@@ -278,30 +272,23 @@ class Renderer3D {
         const textureWidth = texture.width;
         const textureHeight = texture.height;
         
-        // Clamp texture coordinates
         textureX = Math.max(0, Math.min(textureWidth - 1, Math.floor(textureX)));
         
-        // Create temporary canvas for this strip
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 1;
-        tempCanvas.height = textureHeight;
-        const tempCtx = tempCanvas.getContext('2d');
+        // Use the reusable off-screen canvas
+        this.textureCanvas.width = 1;
+        this.textureCanvas.height = textureHeight;
         
-        // Extract column from texture
-        tempCtx.putImageData(texture, -textureX, 0);
+        this.textureCtx.putImageData(texture, -textureX, 0);
         
-        // Draw and scale
         this.ctx.save();
         this.ctx.globalAlpha = brightness;
-        this.ctx.drawImage(tempCanvas, 0, 0, 1, textureHeight, x, y, width, height);
+        this.ctx.drawImage(this.textureCanvas, 0, 0, 1, textureHeight, x, y, width, height);
         this.ctx.restore();
     }
     
     _renderSprites(player, raycastEngine, enemies, projectiles) {
-        // Collect all visible sprites
         const visibleSprites = [];
         
-        // Add enemies
         enemies.forEach(enemy => {
             if (!enemy.alive) return;
             
@@ -309,15 +296,13 @@ class Renderer3D {
             const dy = enemy.position.y - player.position.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Check if in FOV
             const angleToSprite = Math.atan2(dy, dx);
             let angleDiff = angleToSprite - player.rotation;
             
-            // Normalize angle difference
             while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
             
-            if (Math.abs(angleDiff) < CONFIG.FOV_ANGLE / 2 + 0.2) {
+            if (Math.abs(angleDiff) < GAME_SETTINGS.FOV_ANGLE / 2 + 0.2) {
                 visibleSprites.push({
                     entity: enemy,
                     distance: distance,
@@ -327,7 +312,6 @@ class Renderer3D {
             }
         });
         
-        // Add projectiles
         projectiles.forEach(proj => {
             const dx = proj.position.x - player.position.x;
             const dy = proj.position.y - player.position.y;
@@ -341,10 +325,8 @@ class Renderer3D {
             });
         });
         
-        // Sort by distance (back to front)
         visibleSprites.sort((a, b) => b.distance - a.distance);
         
-        // Render sprites
         visibleSprites.forEach(sprite => {
             this._render3DSprite(sprite, player, raycastEngine);
         });
@@ -364,35 +346,27 @@ class Renderer3D {
         const spriteAngle = sprite.angle - player.rotation;
         const spriteDistance = sprite.distance * Math.cos(spriteAngle);
         
-        // Project to screen
-        const distanceProjPlane = (this.canvas.width / 2) / Math.tan(CONFIG.FOV_ANGLE / 2);
-        const spriteHeight = (CONFIG.TILE_SIZE / spriteDistance) * distanceProjPlane;
+        const distanceProjPlane = (this.canvas.width / 2) / Math.tan(GAME_SETTINGS.FOV_ANGLE / 2);
+        const spriteHeight = (GAME_SETTINGS.TILE_SIZE / spriteDistance) * distanceProjPlane;
         const spriteWidth = spriteHeight;
         
-        // Calculate screen position
         const spriteScreenX = Math.tan(spriteAngle) * distanceProjPlane;
         const x = (this.canvas.width / 2) + spriteScreenX - (spriteWidth / 2);
         const y = (this.canvas.height / 2) - (spriteHeight / 2);
         
-        // Don't render if behind player
         if (spriteDistance < 10) return;
         
-        // Lighting
-        const lightIntensity = Math.max(0.3, 1 - (sprite.distance / CONFIG.RENDER_DISTANCE));
+        const lightIntensity = Math.max(0.3, 1 - (sprite.distance / GAME_SETTINGS.RENDER_DISTANCE));
         
-        // Draw sprite
         this.ctx.save();
         this.ctx.globalAlpha = lightIntensity;
         
-        // Create temporary canvas for sprite
-        const tempCanvas = document.createElement('canvas');
         const textureData = texture.frames[frameIndex];
-        tempCanvas.width = textureData.width;
-        tempCanvas.height = textureData.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.putImageData(textureData, 0, 0);
+        this.textureCanvas.width = textureData.width;
+        this.textureCanvas.height = textureData.height;
+        this.textureCtx.putImageData(textureData, 0, 0);
         
-        this.ctx.drawImage(tempCanvas, x, y, spriteWidth, spriteHeight);
+        this.ctx.drawImage(this.textureCanvas, x, y, spriteWidth, spriteHeight);
         this.ctx.restore();
     }
     
@@ -401,24 +375,18 @@ class Renderer3D {
         const barWidth = 200;
         const barHeight = 20;
         
-        // Health bar
         this.ctx.fillStyle = '#c0392b';
         this.ctx.fillRect(padding, padding, barWidth, barHeight);
         this.ctx.fillStyle = '#e74c3c';
         this.ctx.fillRect(padding, padding, (player.health / player.maxHealth) * barWidth, barHeight);
         
-        // Health text
         this.ctx.fillStyle = '#fff';
         this.ctx.font = 'bold 16px Arial';
         this.ctx.fillText(`Health: ${Math.floor(player.health)}`, padding + 5, padding + 15);
         
-        // Ammo
         this.ctx.fillText(`Ammo: ${player.ammo}`, padding, padding + 50);
-        
-        // Score
         this.ctx.fillText(`Score: ${player.score}`, padding, padding + 80);
         
-        // Crosshair
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         const crosshairSize = 10;
@@ -442,13 +410,12 @@ class Renderer3D {
         const x = this.canvas.width / 2 - weaponWidth / 2;
         const y = this.canvas.height - weaponHeight - 20;
         
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = weapon.frames[0].width;
-        tempCanvas.height = weapon.frames[0].height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.putImageData(weapon.frames[0], 0, 0);
+        const textureData = weapon.frames[0];
+        this.textureCanvas.width = textureData.width;
+        this.textureCanvas.height = textureData.height;
+        this.textureCtx.putImageData(textureData, 0, 0);
         
-        this.ctx.drawImage(tempCanvas, x, y, weaponWidth, weaponHeight);
+        this.ctx.drawImage(this.textureCanvas, x, y, weaponWidth, weaponHeight);
     }
     
     _renderMinimap(player, raycastEngine, enemies) {
@@ -457,30 +424,25 @@ class Renderer3D {
         const minimapWidth = 200;
         const minimapHeight = 150;
         
-        // Background
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         this.ctx.fillRect(minimapX, minimapY, minimapWidth, minimapHeight);
         
-        // Draw simplified map
-        const scale = CONFIG.MINIMAP_SCALE;
+        const scale = GAME_SETTINGS.MINIMAP_SCALE;
         
         this.ctx.save();
         this.ctx.translate(minimapX + minimapWidth / 2, minimapY + minimapHeight / 2);
         
-        // Draw player
         this.ctx.fillStyle = '#00ff00';
         this.ctx.beginPath();
         this.ctx.arc(0, 0, 3, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Draw direction
         this.ctx.strokeStyle = '#00ff00';
         this.ctx.beginPath();
         this.ctx.moveTo(0, 0);
         this.ctx.lineTo(Math.cos(player.rotation) * 10, Math.sin(player.rotation) * 10);
         this.ctx.stroke();
         
-        // Draw enemies
         enemies.forEach(enemy => {
             if (!enemy.alive) return;
             
@@ -504,14 +466,14 @@ class Renderer3D {
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
-        this.canvas.width = CONFIG.CANVAS_WIDTH;
-        this.canvas.height = CONFIG.CANVAS_HEIGHT;
+        this.canvas.width = GAME_SETTINGS.CANVAS_WIDTH;
+        this.canvas.height = GAME_SETTINGS.CANVAS_HEIGHT;
         
-        this.assetManager = new AssetManager();
+        // Use BulletproofAssetManager
+        this.assetManager = new BulletproofAssetManager();
         this.audioSystem = new AudioSystem();
         this.particleSystem = new ParticleSystem();
         
-        // Create map (1 = wall, 0 = empty)
         this.mapData = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
@@ -531,17 +493,15 @@ class Game {
         ];
         
         this.world = new World(this.mapData);
-        this.player = new Player(CONFIG.TILE_SIZE * 2, CONFIG.TILE_SIZE * 2);
+        this.player = new Player(GAME_SETTINGS.TILE_SIZE * 2, GAME_SETTINGS.TILE_SIZE * 2);
         this.enemies = [];
         this.projectiles = [];
         
-        // Spawn enemies
         this._spawnEnemies(5);
         
         this.raycastEngine = new RaycastEngine(this.world);
         this.renderer = new Renderer3D(this.canvas, this.assetManager);
         
-        // Input
         this.input = {
             up: false,
             down: false,
@@ -558,24 +518,21 @@ class Game {
     }
     
     async init() {
-        console.log('Initializing game...');
+        console.log('🎮 Initializing game...');
         
-        // Load assets
         await this.assetManager.preloadAssets();
-        
-        // Initialize audio
         await this.audioSystem.init();
         
         this.loading = false;
-        console.log('Game initialized!');
+        console.log('✅ Game initialized!');
     }
     
     _setupInput() {
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w') this.input.up = true;
-            if (e.key === 'ArrowDown' || e.key === 's') this.input.down = true;
-            if (e.key === 'ArrowLeft' || e.key === 'a') this.input.left = true;
-            if (e.key === 'ArrowRight' || e.key === 'd') this.input.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this.input.up = true;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') this.input.down = true;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this.input.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this.input.right = true;
             if (e.key === ' ') {
                 this.input.shoot = true;
                 e.preventDefault();
@@ -583,10 +540,10 @@ class Game {
         });
         
         document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w') this.input.up = false;
-            if (e.key === 'ArrowDown' || e.key === 's') this.input.down = false;
-            if (e.key === 'ArrowLeft' || e.key === 'a') this.input.left = false;
-            if (e.key === 'ArrowRight' || e.key === 'd') this.input.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this.input.up = false;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') this.input.down = false;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this.input.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this.input.right = false;
             if (e.key === ' ') this.input.shoot = false;
         });
     }
@@ -604,10 +561,8 @@ class Game {
     }
     
     update(dt) {
-        // Update player
         this.player.update(dt, this.input, this.world);
         
-        // Handle shooting
         if (this.input.shoot && this.player.shoot()) {
             const projectile = new Projectile(
                 this.player.position.x,
@@ -618,7 +573,6 @@ class Game {
             this.projectiles.push(projectile);
             this.audioSystem.play('shoot', 0.5);
             
-            // Muzzle flash particles
             this.particleSystem.emit(
                 this.player.position.x,
                 this.player.position.y,
@@ -627,16 +581,13 @@ class Game {
             );
         }
         
-        // Update enemies
         this.enemies.forEach(enemy => {
             enemy.update(dt, this.player, this.world);
         });
         
-        // Update projectiles
         this.projectiles.forEach(proj => {
             proj.update(dt, this.world);
             
-            // Check collisions with enemies
             this.enemies.forEach(enemy => {
                 if (proj.alive && enemy.alive) {
                     const dist = proj.position.distance(enemy.position);
@@ -646,7 +597,6 @@ class Game {
                         
                         this.audioSystem.play3D('hit', this.player.position, enemy.position, 0.7);
                         
-                        // Hit particles
                         this.particleSystem.emit(
                             proj.position.x,
                             proj.position.y,
@@ -658,7 +608,6 @@ class Game {
                             this.player.score += 100;
                             this.audioSystem.play3D('explosion', this.player.position, enemy.position);
                             
-                            // Death particles
                             this.particleSystem.emit(
                                 enemy.position.x,
                                 enemy.position.y,
@@ -671,22 +620,17 @@ class Game {
             });
         });
         
-        // Remove dead entities
         this.enemies = this.enemies.filter(e => e.alive);
         this.projectiles = this.projectiles.filter(p => p.alive);
         
-        // Update particles
         this.particleSystem.update(dt);
         
-        // Cast rays
         this.raycastEngine.castAllRays(this.player);
         
-        // Check game over
         if (this.player.health <= 0) {
             this.gameOver();
         }
         
-        // Check win condition
         if (this.enemies.length === 0) {
             this.win();
         }
@@ -731,7 +675,7 @@ class Game {
         const deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
         
-        this.update(Math.min(deltaTime, 0.1)); // Cap at 100ms
+        this.update(Math.min(deltaTime, 0.1));
         this.render();
         
         requestAnimationFrame((time) => this.gameLoop(time));
@@ -760,12 +704,4 @@ class Game {
     }
 }
 
-// ============================================================================
-// ENTRY POINT
-// ============================================================================
-
-window.addEventListener('load', async () => {
-    const game = new Game();
-    await game.init();
-    game.start();
-});
+// Game class is now instantiated and started in index.html to ensure proper lifecycle management.
